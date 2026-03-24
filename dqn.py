@@ -23,14 +23,14 @@ class Replay:
         if seed is not None:
             random.seed(seed)
 
-        def append(self, transition):
-            self.mem.append(transition)
+    def append(self, transition):
+        self.mem.append(transition)
 
-        def sample(self, sample_size):
-            return random.sample(self.mem, sample_size)
+    def sample(self, sample_size):
+        return random.sample(self.mem, sample_size)
 
-        def __len__(self):
-            return len(self.mem)
+    def __len__(self):
+        return len(self.mem)
 
 if __name__ == "__main__":
     n_states = 100
