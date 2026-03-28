@@ -10,7 +10,7 @@ import numpy as np
 seed = 1
 
 device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
-print(device)
+print("Running on GPU" if torch.cuda.is_available() else "Running on CPU")
 
 episode_over = False
 total_reward = 0
@@ -28,15 +28,21 @@ class Agent:
 
     def run(self, training=True, render=False, max_steps=1_000_000,
             use_er=True, use_tn=True,
-            lr=1e-3, update_freq=1, hidden_size=512, epsilon_decay=0.9995):
+            lr=1e-3, update_freq=1, hidden_size=512, epsilon_decay=0.9995,
+            run_seed=0):
         """
-        use_er:       use experience replay buffer
-        use_tn:       use separate target network
-        lr:           learning rate
-        update_freq:  optimize every N environment steps
-        hidden_size:  number of hidden units in DQN
+        use_er:        use experience replay buffer
+        use_tn:        use separate target network
+        lr:            learning rate
+        update_freq:   optimize every N environment steps
+        hidden_size:   number of hidden units in DQN
         epsilon_decay: multiplicative decay per episode
+        run_seed:      seed for full reproducibility
         """
+        random.seed(run_seed)
+        np.random.seed(run_seed)
+        torch.manual_seed(run_seed)
+
         total_reward = 0
         env = gym.make('CartPole-v1', render_mode="human" if render else None)
         n_states = env.observation_space.shape[0]
@@ -48,7 +54,7 @@ class Agent:
         self.steps_per_episode = []  # cumulative steps at end of each episode
 
         if training:
-            replay_memory = Replay(10000, seed) if use_er else None
+            replay_memory = Replay(10000, run_seed) if use_er else None
             epsilon = epsilon_start
 
             dqn_target = DQN(n_states, n_actions, hidden=hidden_size).to(device)
@@ -61,12 +67,13 @@ class Agent:
             self.optimizer = torch.optim.Adam(dqn_policy.parameters(), lr=lr)
 
         for episode in itertools.count():
-            s, _ = env.reset()
+            s, _ = env.reset(seed=run_seed if episode == 0 else None)
             s = torch.tensor(s, dtype=torch.float, device=device)
             terminated = False
+            truncated = False
             reward_episode = 0
 
-            while not terminated:
+            while not (terminated or truncated):
                 if training and random.random() < epsilon:
                     a = env.action_space.sample()
                     a = torch.tensor(a, dtype=torch.float, device=device)
@@ -128,7 +135,7 @@ class Agent:
 
         with torch.no_grad():
             Q_target = rewards + (1 - terminations) * self.gamma * dqn_target(states_p).max(1)[0]
-        Q_current = dqn_policy(states).gather(1, actions.unsqueeze(1)).squeeze()
+        Q_current = dqn_policy(states).gather(1, actions.unsqueeze(1)).squeeze(1)
 
         loss = self.loss_function(Q_current, Q_target)
 
