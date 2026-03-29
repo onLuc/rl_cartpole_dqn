@@ -28,15 +28,20 @@ class Agent:
 
     def run(self, training=True, render=False, max_steps=1_000_000,
             use_er=True, use_tn=True,
-            lr=1e-3, update_freq=1, hidden_size=512, epsilon_decay=0.9995,
-            run_seed=0):
+            lr=1e-3, update_freq=1, hidden_size=512,
+            epsilon_decay=0.9995, epsilon_end=0.05,
+            linear_decay=False, run_seed=0):
         """
         use_er:        use experience replay buffer
         use_tn:        use separate target network
         lr:            learning rate
         update_freq:   optimize every N environment steps
         hidden_size:   number of hidden units in DQN
-        epsilon_decay: multiplicative decay per episode
+        epsilon_decay: multiplicative decay per episode (linear_decay=False only)
+        epsilon_end:   minimum / final epsilon value
+                         - linear_decay=False: floor for multiplicative decay
+                         - linear_decay=True:  ablatable final exploration rate
+        linear_decay:  if True, decay epsilon linearly over total steps
         run_seed:      seed for full reproducibility
         """
         random.seed(run_seed)
@@ -90,6 +95,9 @@ class Agent:
                 if training:
                     total_steps += 1
                     step_count += 1
+                    if linear_decay:
+                        epsilon = max(epsilon_start - (epsilon_start - epsilon_end) * (total_steps / max_steps), epsilon_end)
+
 
                     if use_er:
                         replay_memory.append((s, a, s_prime, reward_t, terminated))
@@ -114,7 +122,9 @@ class Agent:
             self.rewards_episodes.append(reward_episode)
             self.epsilon_hist.append(epsilon)
             self.steps_per_episode.append(total_steps)
-            epsilon = max(epsilon_decay * epsilon, epsilon_end)
+            if not linear_decay:
+                epsilon = max(epsilon_decay * epsilon, epsilon_end)
+
 
             if episode % 50 == 0:
                 avg = np.mean(self.rewards_episodes[-50:])

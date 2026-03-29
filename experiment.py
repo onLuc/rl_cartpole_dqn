@@ -1,20 +1,3 @@
-"""
-Experiment runner for Assignment 2.
-
-Tasks covered:
-  2.1  Basic learning curve (TN + ER, 5 reps, 1M steps)
-  2.2  Ablation study       (1 param varied at a time, 5 reps, 10k steps each)
-  2.4  Config comparison    (Naive / Only TN / Only ER / TN+ER, 5 reps, 1M steps)
-
-Results are cached to disk so plots can be regenerated without rerunning.
-
-Usage:
-  python experiment.py --task ablation          # ~5-15 min
-  python experiment.py --task basic             # ~30-60 min
-  python experiment.py --task configs           # ~2-4 hours
-  python experiment.py --task all               # everything in order
-"""
-
 import argparse
 import os
 import numpy as np
@@ -25,13 +8,13 @@ from env import Agent
 
 # ── Constants ──────────────────────────────────────────────────────────────────
 N_REPS          = 5
-# N_REPS          = 1
 ABLATION_STEPS  = 500_000
 FINAL_STEPS     = 1_000_000
 RESULTS_DIR     = "results"
 SMOOTH_WINDOW   = 200   # rolling average window in episodes (higher = smoother)
+LINEAR_DECAY    = True  # True = linear decay over steps, False = multiplicative decay per episode
+DECAY_TAG       = "linear" if LINEAR_DECAY else "nonlinear"  # used in cache filenames
 SEEDS           = list(range(N_REPS))   # reps use seeds 0,1,2,3,4 → reproducible
-# SEEDS           = [0]   # reps use seeds 0,1,2,3,4 → reproducible
 
 os.makedirs(RESULTS_DIR, exist_ok=True)
 
@@ -40,18 +23,25 @@ BASELINE = dict(
     lr            = 1e-3,
     update_freq   = 16,
     hidden_size   = 64,
-    epsilon_decay = 0.999,
+    epsilon_decay = 0.999,   # used when LINEAR_DECAY=False
+    epsilon_end   = 0.05,    # used when LINEAR_DECAY=True (also floor for nonlinear)
     use_er        = True,
     use_tn        = True,
 )
 
 # ── Ablation grids (Task 2.2) ───────────────────────────────────────────────────
+# The exploration parameter differs by decay mode:
+#   linear    → ablate epsilon_end  (final exploration rate, decay rate is fixed)
+#   nonlinear → ablate epsilon_decay (controls how fast exploration falls off)
 ABLATION = {
-    "lr":            [1e-4,  1e-3,  1e-2],
-    "update_freq":   [1,     4,     16],
-    "hidden_size":   [64,    256,   512],
-    "epsilon_decay": [0.999, 0.9995, 0.9999],
+    "lr":          [1e-4,  1e-3,  1e-2],
+    "update_freq": [1,     4,     16],
+    "hidden_size": [64,    256,   512],
 }
+if LINEAR_DECAY:
+    ABLATION["epsilon_end"]   = [0.01, 0.05, 0.2]
+else:
+    ABLATION["epsilon_decay"] = [0.999, 0.9995, 0.9999]
 
 # ── 4-configuration comparison (Task 2.4) ──────────────────────────────────────
 CONFIGS = {
@@ -84,7 +74,8 @@ def run_experiment(run_kwargs, max_steps, label=""):
         print(f"  rep {rep + 1}/{N_REPS}  (seed={seed})")
         agent = Agent()
         agent.run(training=True, render=False,
-                  max_steps=max_steps, run_seed=seed, **run_kwargs)
+                  max_steps=max_steps, run_seed=seed,
+                  linear_decay=LINEAR_DECAY, **run_kwargs)
         all_rewards.append(np.array(agent.rewards_episodes))
         all_steps.append(np.array(agent.steps_per_episode))
     return all_rewards, all_steps
@@ -109,12 +100,13 @@ def load_results(name):
 
 
 def load_or_run(name, run_kwargs, max_steps, label):
-    if os.path.exists(cache_path(name)):
-        print(f"  Loading cached: {name}")
-        return load_results(name)
+    tagged = f"{DECAY_TAG}_{name}"
+    if os.path.exists(cache_path(tagged)):
+        print(f"  Loading cached: {tagged}")
+        return load_results(tagged)
     print(f"\nRunning: {label} ({max_steps:,} steps × {N_REPS} reps)")
     rewards, steps = run_experiment(run_kwargs, max_steps, label=label)
-    save_results(name, rewards, steps)
+    save_results(tagged, rewards, steps)
     return rewards, steps
 
 
