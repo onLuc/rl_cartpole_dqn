@@ -112,7 +112,7 @@ class Agent:
                             target_net = dqn_target if use_tn else dqn_policy
                             self.optimize(mini_batch, dqn_policy, target_net)
 
-                    if use_tn and step_count >= 10:
+                    if use_tn and step_count >= 500: # Changed from 10 to 500 (should improve stability)
                         dqn_target.load_state_dict(dqn_policy.state_dict())
                         step_count = 0
 
@@ -125,10 +125,10 @@ class Agent:
             if not linear_decay:
                 epsilon = max(epsilon_decay * epsilon, epsilon_end)
 
-
-            if episode % 50 == 0:
-                avg = np.mean(self.rewards_episodes[-50:])
-                print(f"Episode {episode:>5} | Steps {total_steps:>8} | Return {reward_episode:>6.1f} | Avg(50) {avg:>6.1f} | Epsilon {epsilon:.3f}")
+            print_freq = 250
+            if episode % print_freq == 0:
+                avg = np.mean(self.rewards_episodes[-print_freq:])
+                print(f"Episode {episode:>5} | Steps {total_steps:>8} | Return {reward_episode:>6.1f} | Avg({print_freq}) {avg:>6.1f} | Epsilon {epsilon:.3f}")
 
             if training and total_steps >= max_steps:
                 break

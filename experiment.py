@@ -8,9 +8,9 @@ from env import Agent
 
 # ── Constants ──────────────────────────────────────────────────────────────────
 N_REPS          = 5
-ABLATION_STEPS  = 500_000
+ABLATION_STEPS  = 1_000_000
 FINAL_STEPS     = 1_000_000
-RESULTS_DIR     = "results"
+RESULTS_DIR     = "results_1m"
 SMOOTH_WINDOW   = 200   # rolling average window in episodes (higher = smoother)
 LINEAR_DECAY    = True  # True = linear decay over steps, False = multiplicative decay per episode
 DECAY_TAG       = "linear" if LINEAR_DECAY else "nonlinear"  # used in cache filenames
@@ -25,8 +25,8 @@ BASELINE = dict(
     hidden_size   = 64,
     epsilon_decay = 0.999,   # used when LINEAR_DECAY=False
     epsilon_end   = 0.05,    # used when LINEAR_DECAY=True (also floor for nonlinear)
-    use_er        = True,
-    use_tn        = True,
+    use_er        = False,
+    use_tn        = False,
 )
 
 # ── Ablation grids (Task 2.2) ───────────────────────────────────────────────────
@@ -34,12 +34,12 @@ BASELINE = dict(
 #   linear    → ablate epsilon_end  (final exploration rate, decay rate is fixed)
 #   nonlinear → ablate epsilon_decay (controls how fast exploration falls off)
 ABLATION = {
-    "lr":          [1e-4,  1e-3,  1e-2],
-    "update_freq": [1,     4,     16],
-    "hidden_size": [64,    256,   512],
+    "lr":          [1e-4, 5e-4,  1e-3,  5e-3, 1e-2],
+    "update_freq": [1, 4, 16, 32],
+    "hidden_size": [32, 64, 128, 256, 512],
 }
 if LINEAR_DECAY:
-    ABLATION["epsilon_end"]   = [0.01, 0.05, 0.2]
+    ABLATION["epsilon_end"]   = [0.01, 0.05, 0.1]
 else:
     ABLATION["epsilon_decay"] = [0.999, 0.9995, 0.9999]
 
@@ -130,16 +130,16 @@ def save_fig(fig, filename):
 # ── Task 2.1: Basic training curve ────────────────────────────────────────────
 
 def run_basic():
-    rewards, steps = load_or_run("basic_training", BASELINE, FINAL_STEPS, "Basic (TN+ER)")
+    rewards, steps = load_or_run("basic_training", BASELINE, FINAL_STEPS, "Basic")
 
     grid, mean, std = to_step_grid(rewards, steps)
     fig, ax = plt.subplots(figsize=(8, 5))
-    ax.set_title("DQN on CartPole — TN + ER  (5 seeds)")
+    ax.set_title("Naive DQN on CartPole (5 seeds)")
     ax.set_xlabel("Environment Steps")
     ax.set_ylabel(f"Return (smoothed over {SMOOTH_WINDOW} ep)")
     ax.plot(grid, mean, color="steelblue", label="Mean")
     ax.fill_between(grid, mean - std, mean + std, alpha=0.3, color="steelblue", label="±1 std")
-    ax.axhline(475, color="green", linestyle="--", label="Near-optimal (475)")
+    ax.axhline(500, color="green", linestyle="--", label="Optimum (500)")
     ax.set_ylim(0, 520)
     ax.legend()
     plt.tight_layout()
@@ -174,7 +174,7 @@ def run_ablation():
 
 def run_config_comparison():
     # Use the baseline hyperparameters (update after ablation if desired)
-    hp = {k: BASELINE[k] for k in ("lr", "update_freq", "hidden_size", "epsilon_decay")}
+    hp = {k: BASELINE[k] for k in ("lr", "update_freq", "hidden_size", "epsilon_decay", "epsilon_end")}
 
     fig, ax = plt.subplots(figsize=(9, 6))
     ax.set_title("Naive  /  Only TN  /  Only ER  /  TN & ER")
