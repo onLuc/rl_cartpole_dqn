@@ -10,7 +10,7 @@ from env import Agent
 N_REPS          = 5
 ABLATION_STEPS  = 1_000_000
 FINAL_STEPS     = 1_000_000
-RESULTS_DIR     = "results_1m"
+RESULTS_DIR     = "results_1m_ER_TN"
 SMOOTH_WINDOW   = 200   # rolling average window in episodes (higher = smoother)
 LINEAR_DECAY    = True  # True = linear decay over steps, False = multiplicative decay per episode
 DECAY_TAG       = "linear" if LINEAR_DECAY else "nonlinear"  # used in cache filenames
@@ -21,12 +21,12 @@ os.makedirs(RESULTS_DIR, exist_ok=True)
 # Baseline hyperparameters (fixed while varying one at a time in ablation)
 BASELINE = dict(
     lr            = 1e-3,
-    update_freq   = 16,
+    update_freq   = 4,
     hidden_size   = 64,
     epsilon_decay = 0.999,   # used when LINEAR_DECAY=False
     epsilon_end   = 0.05,    # used when LINEAR_DECAY=True (also floor for nonlinear)
-    use_er        = False,
-    use_tn        = False,
+    use_er        = True,
+    use_tn        = True,
 )
 
 # ── Ablation grids (Task 2.2) ───────────────────────────────────────────────────
@@ -34,9 +34,9 @@ BASELINE = dict(
 #   linear    → ablate epsilon_end  (final exploration rate, decay rate is fixed)
 #   nonlinear → ablate epsilon_decay (controls how fast exploration falls off)
 ABLATION = {
-    "lr":          [1e-4, 5e-4,  1e-3,  5e-3, 1e-2],
-    "update_freq": [1, 4, 16, 32],
-    "hidden_size": [32, 64, 128, 256, 512],
+    "lr":          [1e-4,  1e-3,  5e-3],
+    "update_freq": [1, 4, 16],
+    "hidden_size": [32, 64, 128],
 }
 if LINEAR_DECAY:
     ABLATION["epsilon_end"]   = [0.01, 0.05, 0.1]
