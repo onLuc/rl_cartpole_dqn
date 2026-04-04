@@ -30,19 +30,20 @@ class Agent:
             use_er=True, use_tn=True,
             lr=1e-3, update_freq=1, hidden_size=512,
             epsilon_decay=0.9995, epsilon_end=0.05,
-            linear_decay=False, run_seed=0):
+            linear_decay=False, target_sync_freq=500, run_seed=0):
         """
-        use_er:        use experience replay buffer
-        use_tn:        use separate target network
-        lr:            learning rate
-        update_freq:   optimize every N environment steps
-        hidden_size:   number of hidden units in DQN
-        epsilon_decay: multiplicative decay per episode (linear_decay=False only)
-        epsilon_end:   minimum / final epsilon value
-                         - linear_decay=False: floor for multiplicative decay
-                         - linear_decay=True:  ablatable final exploration rate
-        linear_decay:  if True, decay epsilon linearly over total steps
-        run_seed:      seed for full reproducibility
+        use_er:            use experience replay buffer
+        use_tn:            use separate target network
+        lr:                learning rate
+        update_freq:       optimize every N environment steps
+        hidden_size:       number of hidden units in DQN
+        epsilon_decay:     multiplicative decay per episode (linear_decay=False only)
+        epsilon_end:       minimum / final epsilon value
+                             - linear_decay=False: floor for multiplicative decay
+                             - linear_decay=True:  ablatable final exploration rate
+        linear_decay:      if True, decay epsilon linearly over total steps
+        target_sync_freq:  hard-copy policy → target every N environment steps
+        run_seed:          seed for full reproducibility
         """
         random.seed(run_seed)
         np.random.seed(run_seed)
@@ -66,8 +67,8 @@ class Agent:
             if use_tn:
                 dqn_target.load_state_dict(dqn_policy.state_dict())
 
-            step_count = 0   # steps since last target sync
             total_steps = 0
+            step_count = 0   # steps since last target hard sync
 
             self.optimizer = torch.optim.Adam(dqn_policy.parameters(), lr=lr)
 
@@ -96,8 +97,7 @@ class Agent:
                     total_steps += 1
                     step_count += 1
                     if linear_decay:
-                        epsilon = max(epsilon_start - (epsilon_start - epsilon_end) * (total_steps / max_steps), epsilon_end)
-
+                        epsilon = max(epsilon_start - (epsilon_start - epsilon_end) * (total_steps / 500_000), epsilon_end)
 
                     if use_er:
                         replay_memory.append((s, a, s_prime, reward_t, terminated))
@@ -112,7 +112,7 @@ class Agent:
                             target_net = dqn_target if use_tn else dqn_policy
                             self.optimize(mini_batch, dqn_policy, target_net)
 
-                    if use_tn and step_count >= 500: # Changed from 10 to 500 (should improve stability)
+                    if use_tn and step_count >= target_sync_freq:
                         dqn_target.load_state_dict(dqn_policy.state_dict())
                         step_count = 0
 
@@ -145,6 +145,7 @@ class Agent:
 
         with torch.no_grad():
             Q_target = rewards + (1 - terminations) * self.gamma * dqn_target(states_p).max(1)[0]
+
         Q_current = dqn_policy(states).gather(1, actions.unsqueeze(1)).squeeze(1)
 
         loss = self.loss_function(Q_current, Q_target)

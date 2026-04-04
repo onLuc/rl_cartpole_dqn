@@ -10,7 +10,7 @@ from env import Agent
 N_REPS          = 5
 ABLATION_STEPS  = 1_000_000
 FINAL_STEPS     = 1_000_000
-RESULTS_DIR     = "results_1m_ER_TN"
+RESULTS_DIR     = "results_new_approach"
 SMOOTH_WINDOW   = 200   # rolling average window in episodes (higher = smoother)
 LINEAR_DECAY    = True  # True = linear decay over steps, False = multiplicative decay per episode
 DECAY_TAG       = "linear" if LINEAR_DECAY else "nonlinear"  # used in cache filenames
@@ -21,7 +21,7 @@ os.makedirs(RESULTS_DIR, exist_ok=True)
 # Baseline hyperparameters (fixed while varying one at a time in ablation)
 BASELINE = dict(
     lr            = 1e-3,
-    update_freq   = 4,
+    update_freq   = 16,
     hidden_size   = 64,
     epsilon_decay = 0.999,   # used when LINEAR_DECAY=False
     epsilon_end   = 0.05,    # used when LINEAR_DECAY=True (also floor for nonlinear)
