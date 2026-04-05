@@ -89,6 +89,7 @@ class Agent:
 
                 s_prime, reward, terminated, truncated, info = env.step(int(a.item()))
                 reward_episode += reward
+                done = terminated or truncated
 
                 s_prime = torch.tensor(s_prime, dtype=torch.float, device=device)
                 reward_t = torch.tensor(reward, dtype=torch.float, device=device)
@@ -96,11 +97,14 @@ class Agent:
                 if training:
                     total_steps += 1
                     step_count += 1
+
                     if linear_decay:
                         epsilon = max(epsilon_start - (epsilon_start - epsilon_end) * (total_steps / 500_000), epsilon_end)
+                    elif total_steps % 1000 == 0:  # decay epsilon every 1000 steps
+                        epsilon = max(epsilon_decay * epsilon, epsilon_end)
 
                     if use_er:
-                        replay_memory.append((s, a, s_prime, reward_t, terminated))
+                        replay_memory.append((s, a, s_prime, reward_t, done))
                         if len(replay_memory) > 32 and total_steps % update_freq == 0:
                             mini_batch = replay_memory.sample(32)
                             target_net = dqn_target if use_tn else dqn_policy
@@ -108,7 +112,7 @@ class Agent:
                     else:
                         # No ER: train on single transition
                         if total_steps % update_freq == 0:
-                            mini_batch = [(s, a, s_prime, reward_t, terminated)]
+                            mini_batch = [(s, a, s_prime, reward_t, done)]
                             target_net = dqn_target if use_tn else dqn_policy
                             self.optimize(mini_batch, dqn_policy, target_net)
 
@@ -116,20 +120,21 @@ class Agent:
                         dqn_target.load_state_dict(dqn_policy.state_dict())
                         step_count = 0
 
+                    print_freq = 5_000
+                    if total_steps % print_freq == 0:
+                        if episode >= 25:
+                            avg = np.mean(self.rewards_episodes[-print_freq:])
+                        else:
+                            avg = np.mean(self.rewards_episodes)
+                        print(f"Episode {episode:>5} | Steps {total_steps:>8} | Return {reward_episode:>6.1f} | Avg({25}) {avg:>6.1f} | Epsilon {epsilon:.3f}")
+
                 s = s_prime
                 total_reward += reward_t
 
             self.rewards_episodes.append(reward_episode)
             self.epsilon_hist.append(epsilon)
             self.steps_per_episode.append(total_steps)
-            if not linear_decay:
-                epsilon = max(epsilon_decay * epsilon, epsilon_end)
-
-            print_freq = 250
-            if episode % print_freq == 0:
-                avg = np.mean(self.rewards_episodes[-print_freq:])
-                print(f"Episode {episode:>5} | Steps {total_steps:>8} | Return {reward_episode:>6.1f} | Avg({print_freq}) {avg:>6.1f} | Epsilon {epsilon:.3f}")
-
+               
             if training and total_steps >= max_steps:
                 break
 

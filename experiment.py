@@ -10,7 +10,7 @@ from env import Agent
 N_REPS          = 5
 ABLATION_STEPS  = 1_000_000
 FINAL_STEPS     = 1_000_000
-RESULTS_DIR     = "results_new_approach"
+RESULTS_DIR     = "results_final_v2"
 SMOOTH_WINDOW   = 200   # rolling average window in episodes (higher = smoother)
 LINEAR_DECAY    = True  # True = linear decay over steps, False = multiplicative decay per episode
 DECAY_TAG       = "linear" if LINEAR_DECAY else "nonlinear"  # used in cache filenames
@@ -23,7 +23,7 @@ BASELINE = dict(
     lr            = 1e-3,
     update_freq   = 16,
     hidden_size   = 64,
-    epsilon_decay = 0.999,   # used when LINEAR_DECAY=False
+    epsilon_decay = 0.99,   # used when LINEAR_DECAY=False, every 1000 timesteps
     epsilon_end   = 0.05,    # used when LINEAR_DECAY=True (also floor for nonlinear)
     use_er        = True,
     use_tn        = True,
@@ -41,7 +41,7 @@ ABLATION = {
 if LINEAR_DECAY:
     ABLATION["epsilon_end"]   = [0.01, 0.05, 0.1]
 else:
-    ABLATION["epsilon_decay"] = [0.999, 0.9995, 0.9999]
+    ABLATION["epsilon_decay"] = [0.95, 0.99, 0.999]
 
 # ── 4-configuration comparison (Task 2.4) ──────────────────────────────────────
 CONFIGS = {
@@ -134,7 +134,7 @@ def run_basic():
 
     grid, mean, std = to_step_grid(rewards, steps)
     fig, ax = plt.subplots(figsize=(8, 5))
-    ax.set_title("Naive DQN on CartPole (5 seeds)")
+    ax.set_title("Baseline DQN on CartPole (5 seeds)")
     ax.set_xlabel("Environment Steps")
     ax.set_ylabel(f"Return (smoothed over {SMOOTH_WINDOW} ep)")
     ax.plot(grid, mean, color="steelblue", label="Mean")
