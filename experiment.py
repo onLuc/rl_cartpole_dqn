@@ -10,7 +10,7 @@ from env import Agent
 N_REPS          = 5
 ABLATION_STEPS  = 1_000_000
 FINAL_STEPS     = 1_000_000
-RESULTS_DIR     = "results_final_v2"
+RESULTS_DIR     = "results_final_v3"
 SMOOTH_WINDOW   = 200   # rolling average window in episodes (higher = smoother)
 LINEAR_DECAY    = True  # True = linear decay over steps, False = multiplicative decay per episode
 DECAY_TAG       = "linear" if LINEAR_DECAY else "nonlinear"  # used in cache filenames
@@ -22,7 +22,7 @@ os.makedirs(RESULTS_DIR, exist_ok=True)
 BASELINE = dict(
     lr            = 1e-3,
     update_freq   = 16,
-    hidden_size   = 64,
+    hidden_size   = 128,
     epsilon_decay = 0.99,   # used when LINEAR_DECAY=False, every 1000 timesteps
     epsilon_end   = 0.05,    # used when LINEAR_DECAY=True (also floor for nonlinear)
     use_er        = True,
@@ -35,11 +35,11 @@ BASELINE = dict(
 #   nonlinear → ablate epsilon_decay (controls how fast exploration falls off)
 ABLATION = {
     "lr":          [1e-4,  1e-3,  5e-3],
-    "update_freq": [1, 4, 16],
-    "hidden_size": [32, 64, 128],
+    "update_freq": [1, 4, 16, 64],
+    "hidden_size": [32, 64, 128, 256],
 }
 if LINEAR_DECAY:
-    ABLATION["epsilon_end"]   = [0.01, 0.05, 0.1]
+    ABLATION["epsilon_end"]   = [0.01, 0.05, 0.2]
 else:
     ABLATION["epsilon_decay"] = [0.95, 0.99, 0.999]
 

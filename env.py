@@ -120,7 +120,7 @@ class Agent:
                         dqn_target.load_state_dict(dqn_policy.state_dict())
                         step_count = 0
 
-                    print_freq = 5_000
+                    print_freq = 20_000
                     if total_steps % print_freq == 0:
                         if episode >= 25:
                             avg = np.mean(self.rewards_episodes[-print_freq:])
