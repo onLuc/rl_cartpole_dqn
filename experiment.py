@@ -10,11 +10,11 @@ from env import Agent
 N_REPS          = 5
 ABLATION_STEPS  = 1_000_000
 FINAL_STEPS     = 1_000_000
-RESULTS_DIR     = "results_final_v3"
-SMOOTH_WINDOW   = 200   # rolling average window in episodes (higher = smoother)
+RESULTS_DIR     = "results"
+SMOOTH_WINDOW   = 200
 LINEAR_DECAY    = True  # True = linear decay over steps, False = multiplicative decay per episode
 DECAY_TAG       = "linear" if LINEAR_DECAY else "nonlinear"  # used in cache filenames
-SEEDS           = list(range(N_REPS))   # reps use seeds 0,1,2,3,4 → reproducible
+SEEDS           = list(range(N_REPS))
 
 os.makedirs(RESULTS_DIR, exist_ok=True)
 
@@ -29,10 +29,6 @@ BASELINE = dict(
     use_tn        = True,
 )
 
-# ── Ablation grids (Task 2.2) ───────────────────────────────────────────────────
-# The exploration parameter differs by decay mode:
-#   linear    → ablate epsilon_end  (final exploration rate, decay rate is fixed)
-#   nonlinear → ablate epsilon_decay (controls how fast exploration falls off)
 ABLATION = {
     "lr":          [1e-4,  1e-3,  5e-3],
     "update_freq": [1, 4, 16, 64],
@@ -127,7 +123,7 @@ def save_fig(fig, filename):
     plt.close(fig)
 
 
-# ── Task 2.1: Basic training curve ────────────────────────────────────────────
+# ── Basic training curve ────────────────────────────────────────────
 
 def run_basic():
     rewards, steps = load_or_run("basic_training", BASELINE, FINAL_STEPS, "Basic")
@@ -146,7 +142,7 @@ def run_basic():
     save_fig(fig, "basic_training.png")
 
 
-# ── Task 2.2: Ablation study ───────────────────────────────────────────────────
+# ── Ablation study ───────────────────────────────────────────────────
 
 def run_ablation():
     for param, values in ABLATION.items():
@@ -170,7 +166,7 @@ def run_ablation():
         save_fig(fig, f"ablation_{param}.png")
 
 
-# ── Task 2.4: Configuration comparison ────────────────────────────────────────
+# ── Configuration comparison ────────────────────────────────────────
 
 def run_config_comparison():
     # Use the baseline hyperparameters (update after ablation if desired)

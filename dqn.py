@@ -16,7 +16,6 @@ class DQN(nn.Module):
         x = F.relu(self.input_layer(x))
         return self.output_layer(x)
 
-# Class that saves (s,a,s_p,r,t) tuples to decorrelate samples, only saves max_size number of tuples
 class Replay:
     def __init__(self, max_size, seed):
         self.mem = deque([], maxlen=max_size) # fifo
